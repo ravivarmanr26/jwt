@@ -2,7 +2,7 @@ from fastapi import FastAPI,HTTPException,status
 from datetime import datetime,timedelta, timezone
 import jwt
 from jwt.exceptions import InvalidTokenError
-from config import *
+from core.config import *
 app = FastAPI()
 
 """ 
@@ -67,6 +67,4 @@ def home_page(token:str):
     if username in userdatabase:
         return {"message" :"welcome {username} to home page"}
     
-
-# @app.get("/")
 

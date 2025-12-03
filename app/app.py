@@ -1,13 +1,11 @@
 from fastapi import FastAPI, HTTPException, status, Request, Depends, Header
-from config import * 
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from core.config import * 
 import jwt
-from jwt.exceptions import InvalidTokenError
+from jwt.exceptions import InvalidTokenError, ExpiredSignatureError
 from pydantic import BaseModel
-from datetime import datetime,timedelta
+from datetime import datetime,timedelta,timezone
 
-
-print(PRIVATE_KEY)
-print(PUBLIC_KEY)
 
 """ 
 first user going to login with user name and password then authenticate the user give access token jwt
@@ -16,6 +14,8 @@ then whenever user it tried to access other endpoints means he needs to provide 
 """
 
 app = FastAPI()
+
+security = HTTPBearer()
 
 class UserData(BaseModel):
     username : str
@@ -48,7 +48,10 @@ token =  " {payload} + {secret key} + {algorithm}"
 
 def generate_token(username : str):
     expire_time = datetime.now() + timedelta(hours=EXPIRE_TIME)
-    payload = {"username": username, "exp" : expire_time} 
+
+
+    payload = {"sub": username, "exp" : expire_time, 
+               "iat" : datetime.now(tz=timezone.utc), "iss" :"secure-api"} 
     token = jwt.encode(payload=payload, key=PRIVATE_KEY,algorithm= ALGORITHM)
     return token
 
@@ -60,16 +63,22 @@ async def login(request : UserData):
     else:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail="Unauthorized User")
     
-def verify_token(token : str = Header()):
+def verify_token(credentails : HTTPAuthorizationCredentials = Depends(security)):
     try :
-        payload = jwt.decode(token,PUBLIC_KEY,[ALGORITHM])
+        print(credentails)
+        print("type",credentails.scheme)
+
+        token = credentails.credentials
+        payload = jwt.decode(token, PUBLIC_KEY,algorithms=[ALGORITHM])
         return payload
+    except ExpiredSignatureError as ee:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail="The Token Is Expired")
     except InvalidTokenError as ie:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail = str(ie))
     
 @app.post("/generate-sql")
 async def generate_sql(request : GenerateSQlRequest, paylaod= Depends(verify_token)):
-    username = paylaod['username']
+    username = paylaod['sub']
     question = request.question
     return {"question" : question, "query" : "select * from table", "username" : username}
 
