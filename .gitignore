@@ -6,7 +6,12 @@ dist/
 wheels/
 *.egg-info
 
-.pem
-.key
+# Private key / certificate files
+*.pem
+*.key
+*.crt
+*.cer
+*.csr
+
 # Virtual environments
 .venv
